@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { fileService } from '../services/fileService';
-import { CloudArrowUpIcon } from '@heroicons/react/24/outline';
+import { CloudArrowUpIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { UploadResponse } from '../types/file';
 
 interface FileUploadProps {
   onUploadSuccess: () => void;
@@ -10,26 +11,58 @@ interface FileUploadProps {
 export const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const uploadMutation = useMutation({
     mutationFn: fileService.uploadFile,
-    onSuccess: () => {
-      // Invalidate and refetch files query
+    onSuccess: (data: UploadResponse) => {
       queryClient.invalidateQueries({ queryKey: ['files'] });
       setSelectedFile(null);
+      
+      if (data.is_duplicate && data.storage_saved !== undefined) {
+        const savedReadable = formatBytes(data.storage_saved);
+        setSuccessMessage(
+          `Duplicate file detected! Storage saved: ${savedReadable}. File linked to existing copy.`
+        );
+      } else {
+        setSuccessMessage('File uploaded successfully!');
+      }
+      
       onUploadSuccess();
     },
-    onError: (error) => {
-      setError('Failed to upload file. Please try again.');
+    onError: (error: Error) => {
+      const errorMessage = error.message || 'Failed to upload file. Please try again.';
+      setError(errorMessage);
       console.error('Upload error:', error);
     },
   });
+
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = setTimeout(() => setSuccessMessage(null), 5000);
+    return () => clearTimeout(timer);
+  }, [successMessage]);
+
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(null), 10000);
+    return () => clearTimeout(timer);
+  }, [error]);
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       setSelectedFile(event.target.files[0]);
       setError(null);
+      setSuccessMessage(null);
     }
   };
 
@@ -43,7 +76,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess }) => {
       setError(null);
       await uploadMutation.mutateAsync(selectedFile);
     } catch (err) {
-      // Error handling is done in onError callback
     }
   };
 
@@ -82,8 +114,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess }) => {
           </div>
         )}
         {error && (
-          <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+          <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md border border-red-200">
             {error}
+          </div>
+        )}
+        {successMessage && (
+          <div className="text-sm text-green-700 bg-green-50 p-3 rounded-md border border-green-200 flex items-start">
+            <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
+            <span>{successMessage}</span>
           </div>
         )}
         <button

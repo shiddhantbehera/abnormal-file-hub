@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { FileUpload } from './components/FileUpload';
 import { FileList } from './components/FileList';
+import { StorageStats } from './components/StorageStats';
 
 function App() {
-  const [refreshKey, setRefreshKey] = useState(0);
+  const queryClient = useQueryClient();
 
   const handleUploadSuccess = () => {
-    setRefreshKey(prev => prev + 1);
+    queryClient.invalidateQueries({ queryKey: ['files'] });
+    queryClient.invalidateQueries({ queryKey: ['storageStats'] });
   };
 
   return (
@@ -23,10 +25,13 @@ function App() {
         <div className="px-4 py-6 sm:px-0">
           <div className="space-y-6">
             <div className="bg-white shadow sm:rounded-lg">
+              <StorageStats />
+            </div>
+            <div className="bg-white shadow sm:rounded-lg">
               <FileUpload onUploadSuccess={handleUploadSuccess} />
             </div>
             <div className="bg-white shadow sm:rounded-lg">
-              <FileList key={refreshKey} />
+              <FileList />
             </div>
           </div>
         </div>
