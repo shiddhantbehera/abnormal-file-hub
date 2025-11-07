@@ -2,15 +2,112 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Dark mode color palette */
+  --color-primary-50: #1e1b4b;
+  --color-primary-100: #312e81;
+  --color-primary-200: #3730a3;
+  --color-primary-300: #4338ca;
+  --color-primary-400: #4f46e5;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #818cf8;
+  --color-primary-700: #a5b4fc;
+  --color-primary-800: #c7d2fe;
+  --color-primary-900: #e0e7ff;
+  
+  /* Dark background colors */
+  --color-bg-primary: #0f172a;
+  --color-bg-secondary: #1e293b;
+  --color-bg-tertiary: #334155;
+  
+  /* Dark text colors */
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #cbd5e1;
+  --color-text-tertiary: #94a3b8;
+  
+  /* Accent colors for dark mode */
+  --color-blue-dark: #1e3a8a;
+  --color-blue-light: #3b82f6;
+  --color-green-dark: #065f46;
+  --color-green-light: #10b981;
+  --color-purple-dark: #581c87;
+  --color-purple-light: #a855f7;
+  --color-amber-dark: #78350f;
+  --color-amber-light: #f59e0b;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* Card component styling */
+.abnormal-card {
+  @apply bg-slate-800 rounded-lg shadow-xl overflow-hidden border border-slate-700;
+}
+
+/* Custom button styles */
+.btn-primary {
+  @apply bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200;
+}
+
+/* Enhance shadows for dark mode */
+.shadow-sm {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+.shadow-xl {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Input and select styling for dark mode */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="file"],
+select,
+textarea {
+  @apply bg-slate-700 border-slate-600 text-slate-100 placeholder-slate-400;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+select:focus,
+textarea:focus {
+  @apply ring-primary-500 border-primary-500 bg-slate-700;
+}
+
+/* Button variants for dark mode */
+button:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+/* Scrollbar styling for dark mode */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-bg-tertiary);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }

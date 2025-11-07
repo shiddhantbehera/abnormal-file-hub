@@ -1,5 +1,12 @@
 import axios, { AxiosError } from 'axios';
-import { File as FileType, StorageStats, UploadResponse, FilterCriteria, PaginatedResponse, ErrorResponse } from '../types/file';
+import { 
+  File as FileType, 
+  PaginatedResponse, 
+  UploadResponse, 
+  StorageStats, 
+  ErrorResponse,
+  FileFilters
+} from '../types/file';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
@@ -44,48 +51,48 @@ export const fileService = {
     }
   },
 
-  async getFiles(page: number = 1): Promise<PaginatedResponse<FileType>> {
-    const response = await axios.get(`${API_URL}/files/`, {
-      params: { page }
-    });
-    return response.data;
-  },
 
-  async searchFiles(filters: FilterCriteria): Promise<PaginatedResponse<FileType>> {
+  async searchFiles(filters: FileFilters): Promise<PaginatedResponse<FileType>> {
     try {
       const params = new URLSearchParams();
-      if (filters.search) {
-        params.append('search', filters.search);
-      }
-      if (filters.fileTypes && filters.fileTypes.length > 0) {
-        params.append('file_types', filters.fileTypes.join(','));
-      }
-      if (filters.minSize !== undefined) {
-        params.append('min_size', filters.minSize.toString());
-      }
-      if (filters.maxSize !== undefined) {
-        params.append('max_size', filters.maxSize.toString());
-      }
-      if (filters.startDate) {
-        params.append('start_date', filters.startDate);
-      }
-      if (filters.endDate) {
-        params.append('end_date', filters.endDate);
-      }
-      if (filters.page) {
-        params.append('page', filters.page.toString());
+      
+      if (filters) {
+        if (filters.search) {
+          params.append('search', filters.search);
+        }
+        if (filters.file_types) {
+          params.append('file_types', filters.file_types);
+        }
+        if (filters.min_size !== undefined) {
+          params.append('min_size', filters.min_size.toString());
+        }
+        if (filters.max_size !== undefined) {
+          params.append('max_size', filters.max_size.toString());
+        }
+        if (filters.start_date) {
+          params.append('start_date', filters.start_date);
+        }
+        if (filters.end_date) {
+          params.append('end_date', filters.end_date);
+        }
       }
       const response = await axios.get(`${API_URL}/files/search/`, { params });
       return response.data;
     } catch (error) {
       const errorMessage = getErrorMessage(error);
-      console.error('File search error:', errorMessage);
+      console.error('File fetch error:', errorMessage);
       throw new Error(errorMessage);
     }
   },
 
   async deleteFile(id: string): Promise<void> {
-    await axios.delete(`${API_URL}/files/${id}/`);
+    try {
+      await axios.delete(`${API_URL}/files/${id}/`);
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      console.error('File delete error:', errorMessage);
+      throw error;
+    }
   },
 
   async downloadFile(fileUrl: string, filename: string): Promise<void> {

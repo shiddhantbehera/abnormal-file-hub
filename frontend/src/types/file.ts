@@ -4,22 +4,10 @@ export interface File {
   file_type: string;
   size: number;
   uploaded_at: string;
-  file: string;
-  is_duplicate?: boolean;
-}
-
-export interface UploadResponse extends File {
-  storage_saved?: number;
-}
-
-export interface FilterCriteria {
-  search?: string;
-  fileTypes?: string[];
-  minSize?: number;
-  maxSize?: number;
-  startDate?: string;
-  endDate?: string;
-  page?: number;
+  file: string | null;
+  file_hash: string;
+  is_duplicate: boolean;
+  storage_saved: number;
 }
 
 export interface PaginatedResponse<T> {
@@ -29,15 +17,29 @@ export interface PaginatedResponse<T> {
   results: T[];
 }
 
+export interface UploadResponse extends File {
+  is_duplicate: boolean;
+  storage_saved: number;
+}
+
 export interface StorageStats {
   total_files: number;
   unique_files: number;
   duplicate_references: number;
   storage_saved_bytes: number;
   storage_saved_readable: string;
-} 
+}
 
 export interface ErrorResponse {
-  error?: string;
+  error: string;
   detail?: string;
+}
+
+export interface FileFilters {
+  search?: string;
+  file_types?: string;
+  min_size?: number;
+  max_size?: number;
+  start_date?: string;
+  end_date?: string;
 }

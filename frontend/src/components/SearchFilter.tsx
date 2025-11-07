@@ -1,416 +1,202 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { MagnifyingGlassIcon, XMarkIcon, FunnelIcon } from '@heroicons/react/24/outline';
-import { FilterCriteria } from '../types/file';
+import React, { useState } from 'react';
+import { FunnelIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { FileFilters } from '../types/file';
 
-interface SearchFilterProps {
-  onFilterChange: (filters: FilterCriteria) => void;
-}
-
-const FILE_TYPES = [
-  { value: 'application/pdf', label: 'PDF' },
-  { value: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', label: 'DOCX' },
-  { value: 'image/png', label: 'PNG' },
-  { value: 'image/jpeg', label: 'JPG' },
-  { value: 'application/zip', label: 'ZIP' },
-  { value: 'text/plain', label: 'TXT' },
-  { value: 'text/csv', label: 'CSV' },
+// Get unique file types for filtering
+const DEFAULT_FILE_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'text/plain',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 ];
 
-export const SearchFilter: React.FC<SearchFilterProps> = ({ onFilterChange }) => {
-  console.log('[SearchFilter] Component rendered');
+interface SearchFilterProps {
+  onFilterChange: (filters: FileFilters) => void;
+  fileTypes: string[];
+}
+
+export const SearchFilter: React.FC<SearchFilterProps> = ({ 
+  onFilterChange,
+  fileTypes = DEFAULT_FILE_TYPES
+}) => {
+  const [filters, setFilters] = useState<FileFilters>({});
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   
-  const [search, setSearch] = useState('');
-  const [selectedFileTypes, setSelectedFileTypes] = useState<string[]>([]);
-  const [minSize, setMinSize] = useState('');
-  const [maxSize, setMaxSize] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [sizeError, setSizeError] = useState('');
-  const [dateError, setDateError] = useState('');
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const updatedFilters = { ...filters, search: e.target.value };
+    setFilters(updatedFilters);
+    onFilterChange(updatedFilters);
+  };
   
-  console.log('[SearchFilter] Current state:', { search, selectedFileTypes, minSize, maxSize, startDate, endDate });
-
-  const onFilterChangeRef = useRef(onFilterChange);
-  onFilterChangeRef.current = onFilterChange;
-
-  const emitFilterChange = useCallback(() => {
-    if (minSize && maxSize) {
-      const min = parseFloat(minSize);
-      const max = parseFloat(maxSize);
-      if (isNaN(min) || isNaN(max)) {
-        setSizeError('Size values must be valid numbers');
-        return;
-      }
-      if (min < 0 || max < 0) {
-        setSizeError('Size values cannot be negative');
-        return;
-      }
-      if (min > max) {
-        setSizeError('Minimum size cannot be greater than maximum size');
-        return;
-      }
-    }
-    
-    if (minSize) {
-      const min = parseFloat(minSize);
-      if (isNaN(min) || min < 0) {
-        setSizeError('Minimum size must be a non-negative number');
-        return;
-      }
-    }
-    
-    if (maxSize) {
-      const max = parseFloat(maxSize);
-      if (isNaN(max) || max < 0) {
-        setSizeError('Maximum size must be a non-negative number');
-        return;
-      }
-    }
-    
-    setSizeError('');
-
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        setDateError('Invalid date format');
-        return;
-      }
-      
-      if (start > end) {
-        setDateError('Start date cannot be after end date');
-        return;
-      }
-    }
-    
-    if (startDate) {
-      const start = new Date(startDate);
-      if (isNaN(start.getTime())) {
-        setDateError('Invalid start date format');
-        return;
-      }
-    }
-    
-    if (endDate) {
-      const end = new Date(endDate);
-      if (isNaN(end.getTime())) {
-        setDateError('Invalid end date format');
-        return;
-      }
-    }
-    
-    setDateError('');
-
-    const filters: FilterCriteria = {};
-
-    if (search.trim()) {
-      filters.search = search.trim();
-    }
-
-    if (selectedFileTypes.length > 0) {
-      filters.fileTypes = selectedFileTypes;
-    }
-
-    if (minSize) {
-      const minBytes = parseFloat(minSize) * 1024;
-      if (!isNaN(minBytes) && minBytes >= 0) {
-        filters.minSize = minBytes;
-      }
-    }
-
-    if (maxSize) {
-      const maxBytes = parseFloat(maxSize) * 1024;
-      if (!isNaN(maxBytes) && maxBytes >= 0) {
-        filters.maxSize = maxBytes;
-      }
-    }
-
-    if (startDate) {
-      try {
-        filters.startDate = new Date(startDate).toISOString();
-      } catch (e) {
-        setDateError('Invalid start date');
-        return;
-      }
-    }
-
-    if (endDate) {
-      try {
-        const endDateTime = new Date(endDate);
-        endDateTime.setHours(23, 59, 59, 999);
-        filters.endDate = endDateTime.toISOString();
-      } catch (e) {
-        setDateError('Invalid end date');
-        return;
-      }
-    }
-
-    onFilterChangeRef.current(filters);
-  }, [search, selectedFileTypes, minSize, maxSize, startDate, endDate]);
-
-  const isFirstRender = useRef(true);
-
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      emitFilterChange();
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [emitFilterChange]);
-
-  const handleFileTypeToggle = (fileType: string) => {
-    console.log('[SearchFilter] handleFileTypeToggle called with:', fileType);
-    setSelectedFileTypes(prev => {
-      const newValue = prev.includes(fileType)
-        ? prev.filter(t => t !== fileType)
-        : [...prev, fileType];
-      console.log('[SearchFilter] selectedFileTypes changing from', prev, 'to', newValue);
-      return newValue;
-    });
+  const handleFileTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const updatedFilters = { ...filters, file_types: e.target.value || undefined };
+    setFilters(updatedFilters);
+    onFilterChange(updatedFilters);
+  };
+  
+  const handleSizeChange = (field: 'min_size' | 'max_size', value: string) => {
+    // Convert KB to bytes
+    const sizeInBytes = value ? parseInt(value) * 1024 : undefined;
+    const updatedFilters = { ...filters, [field]: sizeInBytes };
+    setFilters(updatedFilters);
+    onFilterChange(updatedFilters);
   };
 
-  const removeFilter = (filterType: string, value?: string) => {
-    switch (filterType) {
-      case 'search':
-        setSearch('');
-        break;
-      case 'fileType':
-        if (value) {
-          setSelectedFileTypes(prev => prev.filter(t => t !== value));
-        }
-        break;
-      case 'minSize':
-        setMinSize('');
-        break;
-      case 'maxSize':
-        setMaxSize('');
-        break;
-      case 'startDate':
-        setStartDate('');
-        break;
-      case 'endDate':
-        setEndDate('');
-        break;
-    }
+  const handleDateChange = (field: 'start_date' | 'end_date', value: string) => {
+    // Convert date to ISO 8601 format if value exists
+    const isoDate = value ? new Date(value).toISOString() : undefined;
+    const updatedFilters = { ...filters, [field]: isoDate };
+    setFilters(updatedFilters);
+    onFilterChange(updatedFilters);
+  };
+  
+
+  
+  const resetFilters = () => {
+    setFilters({});
+    onFilterChange({});
+  };
+  
+  const toggleFilterPanel = () => {
+    setIsFilterPanelOpen(!isFilterPanelOpen);
   };
 
-  const clearAllFilters = () => {
-    setSearch('');
-    setSelectedFileTypes([]);
-    setMinSize('');
-    setMaxSize('');
-    setStartDate('');
-    setEndDate('');
-    setSizeError('');
-    setDateError('');
+  // Helper to determine if any filters are active
+  const hasActiveFilters = () => {
+    return Object.values(filters).some(value => 
+      value !== undefined && value !== '' && 
+      (typeof value !== 'number' || value > 0)
+    );
   };
-
-  const hasActiveFilters = search || selectedFileTypes.length > 0 || minSize || maxSize || startDate || endDate;
-
-  const getFileTypeLabel = (value: string) => {
-    return FILE_TYPES.find(ft => ft.value === value)?.label || value;
-  };
-
+  
   return (
-    <div className="bg-white shadow rounded-lg p-6 mb-6">
-      <div className="flex items-center mb-4">
-        <FunnelIcon className="h-5 w-5 text-gray-500 mr-2" />
-        <h3 className="text-lg font-medium text-gray-900">Search & Filter</h3>
-      </div>
-
-      {/* Search Input */}
-      <div className="mb-4">
-        <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-          Search by filename
-        </label>
-        <div className="relative">
+    <div className="abnormal-card p-4 mb-6">
+      <div className="flex flex-col sm:flex-row items-center">
+        <div className="relative flex-grow mb-2 sm:mb-0">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+            <MagnifyingGlassIcon className="h-5 w-5 text-slate-400" aria-hidden="true" />
           </div>
           <input
             type="text"
-            id="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search files..."
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            className="block w-full pl-10 pr-3 py-2 border border-slate-600 rounded-md leading-5 bg-slate-700 placeholder-slate-400 text-slate-100 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            placeholder="Search files by name..."
+            value={filters.search || ''}
+            onChange={handleSearchChange}
           />
         </div>
-      </div>
-
-      {/* File Type Filter */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          File Types
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {FILE_TYPES.map((fileType) => (
-            <button
-              key={fileType.value}
-              onClick={() => handleFileTypeToggle(fileType.value)}
-              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                selectedFileTypes.includes(fileType.value)
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {fileType.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Size Range Filter */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          File Size (KB)
-        </label>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <input
-              type="number"
-              value={minSize}
-              onChange={(e) => setMinSize(e.target.value)}
-              placeholder="Min size"
-              min="0"
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            />
-          </div>
-          <div>
-            <input
-              type="number"
-              value={maxSize}
-              onChange={(e) => setMaxSize(e.target.value)}
-              placeholder="Max size"
-              min="0"
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            />
-          </div>
-        </div>
-        {sizeError && (
-          <p className="mt-1 text-sm text-red-600">{sizeError}</p>
-        )}
-      </div>
-
-      {/* Date Range Filter */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Upload Date
-        </label>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            />
-          </div>
-          <div>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            />
-          </div>
-        </div>
-        {dateError && (
-          <p className="mt-1 text-sm text-red-600">{dateError}</p>
-        )}
-      </div>
-
-      {/* Active Filters Chips */}
-      {hasActiveFilters && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Active Filters:</span>
-            <button
-              onClick={clearAllFilters}
-              className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-            >
-              Clear all
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {search && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800">
-                Search: {search}
-                <button
-                  onClick={() => removeFilter('search')}
-                  className="ml-2 inline-flex items-center"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
+        
+        <div className="flex space-x-2 ml-0 sm:ml-4">
+          <button
+            type="button"
+            onClick={toggleFilterPanel}
+            className={`inline-flex items-center px-3 py-2 border shadow-sm text-sm leading-4 font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200 ${
+              hasActiveFilters() 
+                ? 'border-primary-500 text-primary-300 bg-primary-900 hover:bg-primary-800' 
+                : 'border-slate-600 text-slate-300 bg-slate-700 hover:bg-slate-600'
+            }`}
+          >
+            <FunnelIcon className={`h-4 w-4 mr-1 ${hasActiveFilters() ? 'text-primary-400' : 'text-slate-400'}`} /> 
+            Filters
+            {hasActiveFilters() && (
+              <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary-800 text-primary-200 border border-primary-600">
+                Active
               </span>
             )}
-            {selectedFileTypes.map((fileType) => (
-              <span
-                key={fileType}
-                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800"
+          </button>
+        </div>
+      </div>
+      
+      {isFilterPanelOpen && (
+        <div className="mt-4 pt-4 border-t border-slate-700">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="file-type" className="block text-sm font-medium text-slate-300">
+                File Type
+              </label>
+              <select
+                id="file-type"
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-600 bg-slate-700 text-slate-100 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                value={filters.file_types || ''}
+                onChange={handleFileTypeChange}
               >
-                Type: {getFileTypeLabel(fileType)}
-                <button
-                  onClick={() => removeFilter('fileType', fileType)}
-                  className="ml-2 inline-flex items-center"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              </span>
-            ))}
-            {minSize && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800">
-                Min: {minSize} KB
-                <button
-                  onClick={() => removeFilter('minSize')}
-                  className="ml-2 inline-flex items-center"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              </span>
-            )}
-            {maxSize && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800">
-                Max: {maxSize} KB
-                <button
-                  onClick={() => removeFilter('maxSize')}
-                  className="ml-2 inline-flex items-center"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              </span>
-            )}
-            {startDate && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800">
-                From: {new Date(startDate).toLocaleDateString()}
-                <button
-                  onClick={() => removeFilter('startDate')}
-                  className="ml-2 inline-flex items-center"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              </span>
-            )}
-            {endDate && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800">
-                To: {new Date(endDate).toLocaleDateString()}
-                <button
-                  onClick={() => removeFilter('endDate')}
-                  className="ml-2 inline-flex items-center"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              </span>
-            )}
+                <option value="">All file types</option>
+                {fileTypes.map(type => (
+                  <option key={type} value={type}>
+                    {type.split('/')[1].toUpperCase()}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label htmlFor="min-size" className="block text-sm font-medium text-slate-300">
+                Min Size (KB)
+              </label>
+              <input
+                type="number"
+                id="min-size"
+                className="mt-1 block w-full pl-3 pr-3 py-2 text-base border-slate-600 bg-slate-700 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                placeholder="Min size"
+                value={filters.min_size ? (filters.min_size / 1024).toString() : ''}
+                onChange={e => handleSizeChange('min_size', e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="max-size" className="block text-sm font-medium text-slate-300">
+                Max Size (KB)
+              </label>
+              <input
+                type="number"
+                id="max-size"
+                className="mt-1 block w-full pl-3 pr-3 py-2 text-base border-slate-600 bg-slate-700 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                placeholder="Max size"
+                value={filters.max_size ? (filters.max_size / 1024).toString() : ''}
+                onChange={e => handleSizeChange('max_size', e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="start-date" className="block text-sm font-medium text-slate-300">
+                Uploaded After
+              </label>
+              <input
+                type="date"
+                id="start-date"
+                className="mt-1 block w-full pl-3 pr-3 py-2 text-base border-slate-600 bg-slate-700 text-slate-100 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                value={filters.start_date ? new Date(filters.start_date).toISOString().split('T')[0] : ''}
+                onChange={e => handleDateChange('start_date', e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="end-date" className="block text-sm font-medium text-slate-300">
+                Uploaded Before
+              </label>
+              <input
+                type="date"
+                id="end-date"
+                className="mt-1 block w-full pl-3 pr-3 py-2 text-base border-slate-600 bg-slate-700 text-slate-100 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                value={filters.end_date ? new Date(filters.end_date).toISOString().split('T')[0] : ''}
+                onChange={e => handleDateChange('end_date', e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="inline-flex items-center px-4 py-2 border border-primary-500 shadow-sm text-sm font-medium rounded-md text-primary-300 bg-slate-700 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200"
+            >
+              <XMarkIcon className="h-4 w-4 mr-1" />
+              Reset Filters
+            </button>
           </div>
         </div>
       )}
     </div>
   );
-};
+}; 
