@@ -3,8 +3,84 @@ from datetime import datetime
 from typing import Optional, List
 
 
+class SearchValidationError(Exception):
+    """Custom exception for search parameter validation errors"""
+    pass
+
+
 class SearchService:
     """Service for building and executing search queries on File model"""
+    
+    @staticmethod
+    def validate_filters(filters: dict) -> None:
+        """
+        Validate filter parameters before applying them.
+        
+        Args:
+            filters: Dictionary containing filter parameters
+        
+        Raises:
+            SearchValidationError: If any filter parameter is invalid
+        """
+        # Validate size range
+        min_size = filters.get('min_size')
+        max_size = filters.get('max_size')
+        
+        if min_size is not None:
+            if not isinstance(min_size, (int, float)) or min_size < 0:
+                raise SearchValidationError("min_size must be a non-negative number")
+        
+        if max_size is not None:
+            if not isinstance(max_size, (int, float)) or max_size < 0:
+                raise SearchValidationError("max_size must be a non-negative number")
+        
+        if min_size is not None and max_size is not None:
+            if min_size > max_size:
+                raise SearchValidationError("min_size cannot be greater than max_size")
+        
+        # Validate date range
+        start_date = filters.get('start_date')
+        end_date = filters.get('end_date')
+        
+        if start_date:
+            try:
+                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            except (ValueError, AttributeError, TypeError):
+                raise SearchValidationError(
+                    f"Invalid start_date format: '{start_date}'. Expected ISO 8601 format (e.g., '2025-11-06T10:30:00Z')"
+                )
+        
+        if end_date:
+            try:
+                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            except (ValueError, AttributeError, TypeError):
+                raise SearchValidationError(
+                    f"Invalid end_date format: '{end_date}'. Expected ISO 8601 format (e.g., '2025-11-06T10:30:00Z')"
+                )
+        
+        if start_date and end_date:
+            try:
+                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                if start_dt > end_dt:
+                    raise SearchValidationError("start_date cannot be after end_date")
+            except SearchValidationError:
+                raise
+            except Exception:
+                pass  # Already validated individual dates above
+        
+        # Validate file types
+        file_types = filters.get('file_types')
+        if file_types is not None:
+            if not isinstance(file_types, list):
+                raise SearchValidationError("file_types must be a list")
+            if not all(isinstance(ft, str) for ft in file_types):
+                raise SearchValidationError("All file_types must be strings")
+        
+        # Validate search term
+        search = filters.get('search')
+        if search is not None and not isinstance(search, str):
+            raise SearchValidationError("search must be a string")
     
     @staticmethod
     def build_search_query(queryset: QuerySet, filters: dict) -> QuerySet:
@@ -23,7 +99,13 @@ class SearchService:
         
         Returns:
             Filtered QuerySet
+        
+        Raises:
+            SearchValidationError: If any filter parameter is invalid
         """
+        # Validate all filters first
+        SearchService.validate_filters(filters)
+        
         # Apply filename filter
         if filters.get('search'):
             queryset = SearchService.apply_filename_filter(
@@ -130,21 +212,15 @@ class SearchService:
         Returns:
             Filtered QuerySet
         
-        Raises:
-            ValueError: If date format is invalid
+        Note:
+            Date validation is performed in validate_filters() before this method is called.
         """
         if start_date:
-            try:
-                start_datetime = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-                queryset = queryset.filter(uploaded_at__gte=start_datetime)
-            except (ValueError, AttributeError) as e:
-                raise ValueError(f"Invalid start_date format: {start_date}") from e
+            start_datetime = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            queryset = queryset.filter(uploaded_at__gte=start_datetime)
         
         if end_date:
-            try:
-                end_datetime = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
-                queryset = queryset.filter(uploaded_at__lte=end_datetime)
-            except (ValueError, AttributeError) as e:
-                raise ValueError(f"Invalid end_date format: {end_date}") from e
+            end_datetime = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            queryset = queryset.filter(uploaded_at__lte=end_datetime)
         
         return queryset
