@@ -4,6 +4,8 @@ import { FileFilters, File as FileType, PaginatedResponse } from '../types/file'
 import { DocumentIcon, TrashIcon, ArrowDownTrayIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { SearchFilter } from './SearchFilter';
+import { formatBytes } from '../utils/formatters';
+import { formatDate } from '../utils/formatters';
 
 export const FileList: React.FC = () => {
   const queryClient = useQueryClient();
@@ -64,14 +66,7 @@ export const FileList: React.FC = () => {
     setFilters(newFilters);
   };
 
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    
-    return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+
 
   if (isLoading) {
     return (
@@ -181,7 +176,7 @@ export const FileList: React.FC = () => {
                       {file.file_type} • {formatBytes(file.size)}
                     </p>
                     <p className="text-sm text-slate-400">
-                      Uploaded {new Date(file.uploaded_at).toLocaleString()}
+                      Uploaded {formatDate(file.uploaded_at)}
                     </p>
                     {file.is_duplicate && file.storage_saved > 0 && (
                       <p className="text-sm text-green-400">

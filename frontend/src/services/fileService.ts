@@ -1,48 +1,71 @@
+/**
+ * File service for API interactions.
+ * Handles file uploads, downloads, search, and storage statistics.
+ */
 import axios, { AxiosError } from 'axios';
-import { 
-  File as FileType, 
-  PaginatedResponse, 
-  UploadResponse, 
-  StorageStats, 
+import {
+  File as FileType,
+  PaginatedResponse,
+  UploadResponse,
+  StorageStats,
   ErrorResponse,
-  FileFilters
+  FileFilters,
 } from '../types/file';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
+/**
+ * Extract error message from various error types.
+ */
 const getErrorMessage = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<ErrorResponse>;
-    if (axiosError.response?.data) {
-      const { error: errorMsg, detail } = axiosError.response.data;
-      if (detail) {
-        return detail;
-      }
-      if (errorMsg) {
-        return errorMsg;
-      }
-    }
-    if (axiosError.message) {
-      return axiosError.message;
-    }
+    const data = axiosError.response?.data;
+
+    if (data?.detail) return data.detail;
+    if (data?.error) return data.error;
+    if (axiosError.message) return axiosError.message;
   }
+
   if (error instanceof Error) {
     return error.message;
   }
+
   return 'An unexpected error occurred';
 };
 
+/**
+ * Build URL search params from filters object.
+ */
+const buildSearchParams = (filters: FileFilters): URLSearchParams => {
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      params.append(key, value.toString());
+    }
+  });
+
+  return params;
+};
+
 export const fileService = {
+  /**
+   * Upload a file to the server.
+   */
   async uploadFile(file: File): Promise<UploadResponse> {
     try {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await axios.post(`${API_URL}/files/`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await axios.post<UploadResponse>(
+        `${API_URL}/files/`,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        }
+      );
+
       return response.data;
     } catch (error) {
       const errorMessage = getErrorMessage(error);
@@ -51,40 +74,30 @@ export const fileService = {
     }
   },
 
-
-  async searchFiles(filters: FileFilters): Promise<PaginatedResponse<FileType>> {
+  /**
+   * Search and filter files.
+   */
+  async searchFiles(
+    filters: FileFilters
+  ): Promise<PaginatedResponse<FileType>> {
     try {
-      const params = new URLSearchParams();
-      
-      if (filters) {
-        if (filters.search) {
-          params.append('search', filters.search);
-        }
-        if (filters.file_types) {
-          params.append('file_types', filters.file_types);
-        }
-        if (filters.min_size !== undefined) {
-          params.append('min_size', filters.min_size.toString());
-        }
-        if (filters.max_size !== undefined) {
-          params.append('max_size', filters.max_size.toString());
-        }
-        if (filters.start_date) {
-          params.append('start_date', filters.start_date);
-        }
-        if (filters.end_date) {
-          params.append('end_date', filters.end_date);
-        }
-      }
-      const response = await axios.get(`${API_URL}/files/search/`, { params });
+      const params = buildSearchParams(filters);
+      const response = await axios.get<PaginatedResponse<FileType>>(
+        `${API_URL}/files/search/`,
+        { params }
+      );
+
       return response.data;
     } catch (error) {
       const errorMessage = getErrorMessage(error);
-      console.error('File fetch error:', errorMessage);
+      console.error('File search error:', errorMessage);
       throw new Error(errorMessage);
     }
   },
 
+  /**
+   * Delete a file by ID.
+   */
   async deleteFile(id: string): Promise<void> {
     try {
       await axios.delete(`${API_URL}/files/${id}/`);
@@ -95,20 +108,26 @@ export const fileService = {
     }
   },
 
+  /**
+   * Download a file from URL.
+   */
   async downloadFile(fileUrl: string, filename: string): Promise<void> {
     try {
       const response = await axios.get(fileUrl, {
         responseType: 'blob',
       });
-      
-      // Create a blob URL and trigger download
+
+      // Create blob URL and trigger download
       const blob = new Blob([response.data]);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
+
       link.href = url;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
+
+      // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
@@ -117,9 +136,15 @@ export const fileService = {
     }
   },
 
+  /**
+   * Get storage statistics.
+   */
   async getStorageStats(): Promise<StorageStats> {
     try {
-      const response = await axios.get(`${API_URL}/files/storage_stats/`);
+      const response = await axios.get<StorageStats>(
+        `${API_URL}/files/storage_stats/`
+      );
+
       return response.data;
     } catch (error) {
       const errorMessage = getErrorMessage(error);
@@ -127,4 +152,4 @@ export const fileService = {
       throw new Error(errorMessage);
     }
   },
-}; 
+};
